@@ -1,45 +1,40 @@
-from typing import Any, Dict, Optional
+from typing import Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
-from gigachat.models.assistants import AssistantDelete
+from gigachat.api.utils import build_response_sync, build_response_async
+from gigachat.models.assistants.assistant_delete import AssistantDelete
 
 
-def _get_kwargs(
-    *,
-    assistant_id: str,
-    access_token: Optional[str] = None,
-) -> Dict[str, Any]:
-    headers = build_headers(access_token)
-
-    return {
+def _get_kwargs(assistant_id: str) -> dict:
+    """Get kwargs for request."""
+    url = "/assistants/delete"
+    headers = {"Content-Type": "application/json"}
+    kwargs = {
         "method": "POST",
-        "url": "/assistants/delete",
-        "json": {
-            "assistant_id": assistant_id,
-        },
+        "url": url,
         "headers": headers,
+        "json": {"assistant_id": assistant_id},
     }
+    return kwargs
 
 
 def sync(
-    client: httpx.Client,
-    *,
+    client: Union[aiohttp.ClientSession, requests.Session],
     assistant_id: str,
-    access_token: Optional[str] = None,
 ) -> AssistantDelete:
-    kwargs = _get_kwargs(assistant_id=assistant_id, access_token=access_token)
+    """Delete assistant."""
+    kwargs = _get_kwargs(assistant_id)
     response = client.request(**kwargs)
-    return build_response(response, AssistantDelete)
+    return build_response_sync(response, AssistantDelete)
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
-    *,
+    client: aiohttp.ClientSession,
     assistant_id: str,
-    access_token: Optional[str] = None,
 ) -> AssistantDelete:
-    kwargs = _get_kwargs(assistant_id=assistant_id, access_token=access_token)
+    """Delete assistant."""
+    kwargs = _get_kwargs(assistant_id)
     response = await client.request(**kwargs)
-    return build_response(response, AssistantDelete)
+    return await build_response_async(response, AssistantDelete)

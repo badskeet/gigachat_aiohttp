@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Any, Dict, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers
 from gigachat.exceptions import AuthenticationError, ResponseError
@@ -24,17 +24,19 @@ def _get_kwargs(
     return params
 
 
-def _build_response(response: httpx.Response) -> bool:
-    if response.status_code == HTTPStatus.OK:
+async def _build_response(response: aiohttp.ClientResponse) -> bool:
+    if response.status == HTTPStatus.OK:
         return True
-    elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, response.content, response.headers)
+    elif response.status == HTTPStatus.UNAUTHORIZED:
+        content = await response.read()
+        raise AuthenticationError(str(response.url), response.status, content, response.headers)
     else:
-        raise ResponseError(response.url, response.status_code, response.content, response.headers)
+        content = await response.read()
+        raise ResponseError(str(response.url), response.status, content, response.headers)
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     thread_id: str,
     access_token: Optional[str] = None,
@@ -46,12 +48,12 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     thread_id: str,
     access_token: Optional[str] = None,
 ) -> bool:
     """Удаляет тред"""
     kwargs = _get_kwargs(thread_id=thread_id, access_token=access_token)
-    response = await client.request(**kwargs)
-    return _build_response(response)
+    async with client.request(**kwargs) as response:
+        return await _build_response(response)

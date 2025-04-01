@@ -4,7 +4,8 @@ import logging
 import uuid
 from typing import Any, Dict
 
-import httpx
+import aiohttp
+import requests
 
 from gigachat.api.utils import USER_AGENT, build_response
 from gigachat.models import AccessToken
@@ -21,7 +22,7 @@ def _get_kwargs(*, url: str, credentials: str, scope: str) -> Dict[str, Any]:
     return {
         "method": "POST",
         "url": url,
-        "data": {"scope": scope},
+        "json": {"scope": scope},
         "headers": headers,
     }
 
@@ -35,15 +36,15 @@ def _validate_credentials(credentials: str) -> None:
         )
 
 
-def sync(client: httpx.Client, *, url: str, credentials: str, scope: str) -> AccessToken:
+def sync(client: requests.Session, *, url: str, credentials: str, scope: str) -> AccessToken:
     _validate_credentials(credentials)
     kwargs = _get_kwargs(url=url, credentials=credentials, scope=scope)
     response = client.request(**kwargs)
     return build_response(response, AccessToken)
 
 
-async def asyncio(client: httpx.AsyncClient, *, url: str, credentials: str, scope: str) -> AccessToken:
+async def asyncio(client: aiohttp.ClientSession, *, url: str, credentials: str, scope: str) -> AccessToken:
     _validate_credentials(credentials)
     kwargs = _get_kwargs(url=url, credentials=credentials, scope=scope)
-    response = await client.request(**kwargs)
-    return build_response(response, AccessToken)
+    async with client.request(**kwargs) as response:
+        return await build_response(response, AccessToken)

@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Optional
 
-import httpx
+import aiohttp
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Function
 from gigachat.models.assistants import Assistant
 
@@ -40,7 +40,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     assistant_id: str,
     name: Optional[str] = None,
@@ -66,7 +66,7 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     assistant_id: str,
     name: Optional[str] = None,
@@ -77,6 +77,7 @@ async def asyncio(
     metadata: Optional[Dict[str, Any]] = None,
     access_token: Optional[str] = None,
 ) -> Assistant:
+    """Обновляет ассистента"""
     kwargs = _get_kwargs(
         assistant_id=assistant_id,
         name=name,
@@ -87,5 +88,5 @@ async def asyncio(
         metadata=metadata,
         access_token=access_token,
     )
-    response = await client.request(**kwargs)
-    return build_response(response, Assistant)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, Assistant)

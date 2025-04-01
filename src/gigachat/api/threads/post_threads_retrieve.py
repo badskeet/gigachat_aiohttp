@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers, build_response
 from gigachat.models.threads import Threads
@@ -24,7 +24,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     threads_ids: List[str],
     access_token: Optional[str] = None,
@@ -36,12 +36,12 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     threads_ids: List[str],
     access_token: Optional[str] = None,
 ) -> Threads:
     """Получение перечня тредов по идентификаторам"""
     kwargs = _get_kwargs(threads_ids=threads_ids, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, Threads)
+    async with client.request(**kwargs) as response:
+        return await build_response(response, Threads)

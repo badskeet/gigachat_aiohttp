@@ -1,6 +1,6 @@
-import httpx
+import aiohttp
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.api import post_chat
 from gigachat.context import authorization_cvar, operation_id_cvar, request_id_cvar, service_id_cvar, session_id_cvar
@@ -32,43 +32,43 @@ def test__kwargs_context_vars() -> None:
     operation_id_cvar.reset(token_operation_id_cvar)
 
 
-def test_sync(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=CHAT_COMPLETION)
+def test_sync(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = post_chat.sync(client, chat=CHAT)
 
     assert isinstance(response, ChatCompletion)
 
 
-def test_sync_value_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json={})
+def test_sync_value_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload={})
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ValueError, match="5 validation errors for ChatCompletion*"):
             post_chat.sync(client, chat=CHAT)
 
 
-def test_sync_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=401)
+def test_sync_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=401)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(AuthenticationError):
             post_chat.sync(client, chat=CHAT)
 
 
-def test_sync_response_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=400)
+def test_sync_response_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=400)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ResponseError):
             post_chat.sync(client, chat=CHAT)
 
 
-def test_sync_headers(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=CHAT_COMPLETION)
+def test_sync_headers(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = post_chat.sync(
             client,
             chat=CHAT,
@@ -79,10 +79,10 @@ def test_sync_headers(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_asyncio(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=CHAT_COMPLETION)
+async def test_asyncio(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION)
 
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = await post_chat.asyncio(client, chat=CHAT)
 
     assert isinstance(response, ChatCompletion)

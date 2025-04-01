@@ -2,7 +2,8 @@ import ssl
 from typing import List, Optional
 
 import pytest
-from pytest_httpx import HTTPXMock
+from aiohttp import ClientSession
+from pytest_aiohttp import AiohttpClientMock
 from pytest_mock import MockerFixture
 
 from gigachat import GigaChat
@@ -152,595 +153,389 @@ def test__unknown_kwargs(mocker: MockerFixture) -> None:
     assert spy.call_count == 1
 
 
-def test_get_tokens_count(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=TOKENS_COUNT_URL, json=TOKENS_COUNT)
+@pytest.fixture
+def aiohttp_mock() -> AiohttpClientMock:
+    return AiohttpClientMock()
 
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.tokens_count(input_=["123"], model="GigaChat:latest")
-    assert isinstance(response, List)
-    for row in response:
-        assert isinstance(row, TokensCount)
 
+def test_get_tokens_count(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(TOKENS_COUNT_URL, payload=get_json("tokens_count.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_tokens_count("text")
+    assert response == TokensCount.model_validate(get_json("tokens_count.json"))
 
-def test_get_models(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json=MODELS)
 
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.get_models()
+def test_get_models(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload=get_json("models.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_models()
+    assert response == Models.model_validate(get_json("models.json"))
 
-    assert isinstance(response, Models)
 
+def test_get_model(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODEL_URL, payload=get_json("model.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_model("model")
+    assert response == Model.model_validate(get_json("model.json"))
 
-def test_get_model(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODEL_URL, json=MODEL)
 
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.get_model("model")
+def test_chat(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-    assert isinstance(response, Model)
 
+def test_upload_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(FILES_URL, payload=get_json("uploaded_file.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.upload_file(get_bytes("file.txt"))
+    assert response == UploadedFile.model_validate(get_json("uploaded_file.json"))
 
-def test_chat(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
 
-    with GigaChatSyncClient(base_url=BASE_URL, model="model") as client:
-        response = client.chat("text")
+def test_chat_access_token(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(access_token="access_token")
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-    assert isinstance(response, ChatCompletion)
 
+def test_chat_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-def test_upload_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=FILES_URL, json=FILES)
 
-    with GigaChatSyncClient(base_url=BASE_URL, model="model") as client:
-        response = client.upload_file(file=FILE)
+def test_chat_user_password(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(user="user", password="password")
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-    assert isinstance(response, UploadedFile)
 
+def test_chat_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatSyncClient(credentials="credentials")
+    with pytest.raises(AuthenticationError):
+        client.chat("text")
 
-def test_chat_access_token(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-    access_token = "access_token"
 
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token) as client:
-        response = client.chat(CHAT)
+def test_chat_update_token_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(credentials="credentials", update_token=True)
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-    assert isinstance(response, ChatCompletion)
 
+def test_chat_update_token_user_password(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(user="user", password="password", update_token=True)
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-def test_chat_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
 
-    with GigaChatSyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        response = client.chat(CHAT)
+def test_chat_update_token_false(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatSyncClient(credentials="credentials", update_token=False)
+    with pytest.raises(AuthenticationError):
+        client.chat("text")
 
-    assert isinstance(response, ChatCompletion)
 
+def test_chat_update_token_success(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatSyncClient(credentials="credentials", update_token=True)
+    response = client.chat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
-def test_chat_user_password(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
 
-    with GigaChatSyncClient(base_url=BASE_URL, user="user", password="password") as client:
-        response = client.chat(CHAT)
-
-    assert isinstance(response, ChatCompletion)
-
-
-def test_chat_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-
-    with GigaChatSyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        with pytest.raises(AuthenticationError):
-            client.chat(CHAT)
-
-
-def test_chat_update_token_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(
-        base_url=BASE_URL,
-        auth_url=AUTH_URL,
-        access_token=access_token,
-        credentials=CREDENTIALS,
-    ) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            client.chat(CHAT)
-        assert client.token
-        assert client.token != access_token
-
-
-def test_chat_update_token_user_password(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            client.chat(CHAT)
-        assert client.token
-        assert client.token != access_token
-
-
-def test_chat_update_token_false(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            client.chat(CHAT)
-        assert client.token == access_token
-
-
-def test_chat_update_token_success(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        assert client.token == access_token
-        response = client.chat(CHAT)
-
-    assert client.token
-    assert client.token != access_token
-    assert isinstance(response, ChatCompletion)
-
-
-def test_chat_update_token_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            client.chat(CHAT)
-
-    assert client.token
-    assert client.token != access_token
-
-
-def test_chat_with_functions(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION_FUNCTION)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token) as client:
-        response = client.chat(CHAT_FUNCTION)
-
-    assert isinstance(response, ChatCompletion)
-    assert response.choices[0].finish_reason == "function_call"
-    assert response.choices[0].message.function_call is not None
-    assert response.choices[0].message.function_call.name == "fc"
-    assert response.choices[0].message.function_call.arguments is not None
-    assert response.choices[0].message.function_call.arguments == {
-        "location": "Москва",
-        "num_days": 0,
-    }
-
-
-def test_embeddings(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=EMBEDDINGS_URL, json=EMBEDDINGS)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.embeddings(texts=["text"], model="model")
-    assert isinstance(response, Embeddings)
-    for row in response.data:
-        assert isinstance(row, Embedding)
-
-
-def test_stream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = list(client.stream(CHAT))
-
-    assert len(response) == 3
-    assert all(isinstance(chunk, ChatCompletionChunk) for chunk in response)
-    assert response[2].choices[0].finish_reason == "stop"
-
-
-def test_stream_access_token(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        response = list(client.stream(CHAT))
-
-    assert len(response) == 3
-    assert all(isinstance(chunk, ChatCompletionChunk) for chunk in response)
-    assert response[2].choices[0].finish_reason == "stop"
-
-
-def test_stream_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-
-    with GigaChatSyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        with pytest.raises(AuthenticationError):
-            list(client.stream(CHAT))
-
-
-def test_stream_update_token_success(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=CHAT_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        assert client.token == access_token
-        response = list(client.stream(CHAT))
-
-    assert client.token
-    assert client.token != access_token
-    assert len(response) == 3
-    assert all(isinstance(chunk, ChatCompletionChunk) for chunk in response)
-    assert response[2].choices[0].finish_reason == "stop"
-
-
-def test_stream_update_token_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    with GigaChatSyncClient(base_url=BASE_URL, access_token=access_token, user="user", password="password") as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            list(client.stream(CHAT))
-
-    assert client.token
-    assert client.token != access_token
-
-
-def test_get_token_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-
-    model = GigaChat(
-        base_url=BASE_URL,
-        auth_url=AUTH_URL,
-        credentials=CREDENTIALS,
+def test_chat_update_token_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, status=401)
+    client = GigaChatSyncClient(credentials="credentials", update_token=True)
+    with pytest.raises(AuthenticationError):
+        client.chat("text")
+
+
+def test_chat_with_functions(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat_with_functions.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.chat(
+        "text",
+        functions=[Function(name="function", description="description", parameters={"type": "object"})],
     )
-    access_token = model.get_token()
-
-    assert model._access_token is not None
-    assert model._access_token.access_token == ACCESS_TOKEN["access_token"]
-    assert model._access_token.expires_at == ACCESS_TOKEN["expires_at"]
-    assert access_token.access_token == ACCESS_TOKEN["access_token"]
-    assert access_token.expires_at == ACCESS_TOKEN["expires_at"]
+    assert response == ChatCompletion.model_validate(get_json("chat_with_functions.json"))
 
 
-def test_balance(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=BALANCE_URL, json=BALANCE)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.get_balance()
-    assert isinstance(response, Balance)
-    for row in response.balance:
-        assert isinstance(row, BalanceValue)
+def test_embeddings(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(EMBEDDINGS_URL, payload=get_json("embeddings.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.embeddings("text")
+    assert response == Embeddings.model_validate(get_json("embeddings.json"))
 
 
-def test_convert_functions(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CONVERT_FUNCTIONS_URL, json=CONVERT_FUNCTIONS)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.openapi_function_convert(openapi_function="")
-    assert isinstance(response, OpenApiFunctions)
-    for row in response.functions:
-        assert isinstance(row, Function)
+def test_stream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = list(client.stream("text"))
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
-def test_get_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_FILE_URL, json=GET_FILE)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.get_file(file="1")
-    assert isinstance(response, UploadedFile)
-
-
-def test_get_files(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_FILES_URL, json=GET_FILES)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.get_files()
-    assert isinstance(response, UploadedFiles)
-    assert len(response.data) == 2
+def test_stream_access_token(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatSyncClient(access_token="access_token")
+    response = list(client.stream("text"))
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
-def test_delete_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=FILE_DELETE_URL, json=FILE_DELETE)
-
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        response = client.delete_file(file="1")
-    assert isinstance(response, DeletedFile)
-
-
-@pytest.mark.asyncio()
-async def test_aget_models(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json=MODELS)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aget_models()
-
-    assert isinstance(response, Models)
+def test_stream_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatSyncClient(credentials="credentials")
+    with pytest.raises(AuthenticationError):
+        list(client.stream("text"))
 
 
-@pytest.mark.asyncio()
-async def test_atokens_count(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=TOKENS_COUNT_URL, json=TOKENS_COUNT)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.atokens_count(input_=["text"], model="GigaChat:latest")
-
-    assert isinstance(response, List)
-    for row in response:
-        assert isinstance(row, TokensCount)
+def test_stream_update_token_success(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatSyncClient(credentials="credentials", update_token=True)
+    response = list(client.stream("text"))
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
-@pytest.mark.asyncio()
-async def test_aget_model(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODEL_URL, json=MODEL)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aget_model("model")
-
-    assert isinstance(response, Model)
+def test_stream_update_token_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, status=401)
+    client = GigaChatSyncClient(credentials="credentials", update_token=True)
+    with pytest.raises(AuthenticationError):
+        list(client.stream("text"))
 
 
-@pytest.mark.asyncio()
-async def test_achat(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
+def test_get_token_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_token()
+    assert response == "access_token"
 
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.achat("text")
 
-    assert isinstance(response, ChatCompletion)
+def test_balance(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(BALANCE_URL, payload=get_json("balance.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.balance()
+    assert response == Balance.model_validate(get_json("balance.json"))
+
+
+def test_convert_functions(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CONVERT_FUNCTIONS_URL, payload=get_json("convert_functions.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.convert_functions([Function(name="function", description="description", parameters={"type": "object"})])
+    assert response == OpenApiFunctions.model_validate(get_json("convert_functions.json"))
+
+
+def test_get_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(f"{FILES_URL}/file_id", payload=get_json("uploaded_file.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_file("file_id")
+    assert response == UploadedFile.model_validate(get_json("uploaded_file.json"))
+
+
+def test_get_files(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(FILES_URL, payload=get_json("uploaded_files.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.get_files()
+    assert response == UploadedFiles.model_validate(get_json("uploaded_files.json"))
+
+
+def test_delete_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.delete(f"{FILES_URL}/file_id", payload=get_json("deleted_file.json"))
+    client = GigaChatSyncClient(credentials="credentials")
+    response = client.delete_file("file_id")
+    assert response == DeletedFile.model_validate(get_json("deleted_file.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_access_token(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, access_token=access_token) as client:
-        response = await client.achat(CHAT)
-
-    assert isinstance(response, ChatCompletion)
+async def test_aget_models(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload=get_json("models.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_models()
+    assert response == Models.model_validate(get_json("models.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        response = await client.achat(CHAT)
-
-    assert isinstance(response, ChatCompletion)
+async def test_atokens_count(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(TOKENS_COUNT_URL, payload=get_json("tokens_count.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_tokens_count("text")
+    assert response == TokensCount.model_validate(get_json("tokens_count.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_user_password(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, json=CHAT_COMPLETION)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, user="user", password="password") as client:
-        response = await client.achat(CHAT)
-
-    assert isinstance(response, ChatCompletion)
+async def test_aget_model(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODEL_URL, payload=get_json("model.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_model("model")
+    assert response == Model.model_validate(get_json("model.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        with pytest.raises(AuthenticationError):
-            await client.achat(CHAT)
+async def test_achat(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_update_token_false(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, auth_url=AUTH_URL, access_token=access_token) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            await client.achat(CHAT)
-        assert client.token == access_token
+async def test_achat_access_token(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(access_token="access_token")
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_update_token_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(
-        base_url=BASE_URL,
-        auth_url=AUTH_URL,
-        access_token=access_token,
-        credentials=CREDENTIALS,
-    ) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            await client.achat(CHAT)
-        assert client.token
-        assert client.token != access_token
+async def test_achat_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_achat_update_token_user_password(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(
-        base_url=BASE_URL, access_token=access_token, user="user", password="password"
-    ) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            await client.achat(CHAT)
-        assert client.token
-        assert client.token != access_token
+async def test_achat_user_password(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(user="user", password="password")
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_aembeddings(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=EMBEDDINGS_URL, json=EMBEDDINGS)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aembeddings(texts=["text"], model="model")
-    assert isinstance(response, Embeddings)
-    for row in response.data:
-        assert isinstance(row, Embedding)
+async def test_achat_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatAsyncClient(credentials="credentials")
+    with pytest.raises(AuthenticationError):
+        await client.achat("text")
 
 
 @pytest.mark.asyncio()
-async def test_abalance(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=BALANCE_URL, json=BALANCE)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aget_balance()
-    assert isinstance(response, Balance)
-    for row in response.balance:
-        assert isinstance(row, BalanceValue)
+async def test_achat_update_token_false(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatAsyncClient(credentials="credentials", update_token=False)
+    with pytest.raises(AuthenticationError):
+        await client.achat("text")
 
 
 @pytest.mark.asyncio()
-async def test_aconvert_functions(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CONVERT_FUNCTIONS_URL, json=CONVERT_FUNCTIONS)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aopenapi_function_convert(openapi_function="")
-    assert isinstance(response, OpenApiFunctions)
-    for row in response.functions:
-        assert isinstance(row, Function)
+async def test_achat_update_token_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(credentials="credentials", update_token=True)
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_astream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = [chunk async for chunk in client.astream(CHAT)]
-
-    assert len(response) == 3
-    assert all(isinstance(chunk, ChatCompletionChunk) for chunk in response)
-    assert response[2].choices[0].finish_reason == "stop"
+async def test_achat_update_token_user_password(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("chat.json"))
+    client = GigaChatAsyncClient(user="user", password="password", update_token=True)
+    response = await client.achat("text")
+    assert response == ChatCompletion.model_validate(get_json("chat.json"))
 
 
 @pytest.mark.asyncio()
-async def test_astream_access_token(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(
-        base_url=BASE_URL, access_token=access_token, user="user", password="password"
-    ) as client:
-        response = [chunk async for chunk in client.astream(CHAT)]
-
-    assert len(response) == 3
-    assert all(isinstance(chunk, ChatCompletionChunk) for chunk in response)
-    assert response[2].choices[0].finish_reason == "stop"
+async def test_aembeddings(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(EMBEDDINGS_URL, payload=get_json("embeddings.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aembeddings("text")
+    assert response == Embeddings.model_validate(get_json("embeddings.json"))
 
 
 @pytest.mark.asyncio()
-async def test_astream_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL, auth_url=AUTH_URL, credentials=CREDENTIALS) as client:
-        with pytest.raises(AuthenticationError):
-            _ = [chunk async for chunk in client.astream(CHAT)]
+async def test_abalance(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(BALANCE_URL, payload=get_json("balance.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.abalance()
+    assert response == Balance.model_validate(get_json("balance.json"))
 
 
 @pytest.mark.asyncio()
-async def test_astream_update_token(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=CHAT_URL, status_code=401)
-    httpx_mock.add_response(url=TOKEN_URL, json=TOKEN)
-    access_token = "access_token"
-
-    async with GigaChatAsyncClient(
-        base_url=BASE_URL, access_token=access_token, user="user", password="password"
-    ) as client:
-        assert client.token == access_token
-        with pytest.raises(AuthenticationError):
-            _ = [chunk async for chunk in client.astream(CHAT)]
-        assert client.token
-        assert client.token != access_token
-
-
-def test__update_token() -> None:
-    with GigaChatSyncClient(base_url=BASE_URL) as client:
-        client._update_token()
+async def test_aconvert_functions(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CONVERT_FUNCTIONS_URL, payload=get_json("convert_functions.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aconvert_functions([Function(name="function", description="description", parameters={"type": "object"})])
+    assert response == OpenApiFunctions.model_validate(get_json("convert_functions.json"))
 
 
 @pytest.mark.asyncio()
-async def test__aupdate_token() -> None:
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        await client._aupdate_token()
+async def test_astream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = [chunk async for chunk in client.astream("text")]
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
 @pytest.mark.asyncio()
-async def test_aupload_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=FILES_URL, json=FILES)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aupload_file(file=FILE)
-
-    assert isinstance(response, UploadedFile)
+async def test_astream_access_token(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatAsyncClient(access_token="access_token")
+    response = [chunk async for chunk in client.astream("text")]
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
 @pytest.mark.asyncio()
-async def test_aget_token_credentials(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=AUTH_URL, json=ACCESS_TOKEN)
-
-    model = GigaChat(
-        base_url=BASE_URL,
-        auth_url=AUTH_URL,
-        credentials=CREDENTIALS,
-    )
-    access_token = await model.aget_token()
-
-    assert model._access_token is not None
-    assert model._access_token.access_token == ACCESS_TOKEN["access_token"]
-    assert model._access_token.expires_at == ACCESS_TOKEN["expires_at"]
-    assert access_token.access_token == ACCESS_TOKEN["access_token"]
-    assert access_token.expires_at == ACCESS_TOKEN["expires_at"]
+async def test_astream_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(CHAT_URL, status=401)
+    client = GigaChatAsyncClient(credentials="credentials")
+    with pytest.raises(AuthenticationError):
+        async for _ in client.astream("text")
 
 
 @pytest.mark.asyncio()
-async def test_aget_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_FILE_URL, json=GET_FILE)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aget_file(file="1")
-    assert isinstance(response, UploadedFile)
-
-
-@pytest.mark.asyncio()
-async def test_aget_files(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_FILES_URL, json=GET_FILES)
-
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.aget_files()
-    assert isinstance(response, UploadedFiles)
-    assert len(response.data) == 2
+async def test_astream_update_token(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    aiohttp_mock.post(CHAT_URL, payload=get_json("stream.json"))
+    client = GigaChatAsyncClient(credentials="credentials", update_token=True)
+    response = [chunk async for chunk in client.astream("text")]
+    assert response == [ChatCompletionChunk.model_validate(get_json("stream.json"))]
 
 
 @pytest.mark.asyncio()
-async def test_adelete_file(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=FILE_DELETE_URL, json=FILE_DELETE)
+async def test_aupload_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(FILES_URL, payload=get_json("uploaded_file.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aupload_file(get_bytes("file.txt"))
+    assert response == UploadedFile.model_validate(get_json("uploaded_file.json"))
 
-    async with GigaChatAsyncClient(base_url=BASE_URL) as client:
-        response = await client.adelete_file(file="1")
-    assert isinstance(response, DeletedFile)
+
+@pytest.mark.asyncio()
+async def test_aget_token_credentials(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(TOKEN_URL, payload=get_json("token.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_token()
+    assert response == "access_token"
+
+
+@pytest.mark.asyncio()
+async def test_aget_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(f"{FILES_URL}/file_id", payload=get_json("uploaded_file.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_file("file_id")
+    assert response == UploadedFile.model_validate(get_json("uploaded_file.json"))
+
+
+@pytest.mark.asyncio()
+async def test_aget_files(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(FILES_URL, payload=get_json("uploaded_files.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.aget_files()
+    assert response == UploadedFiles.model_validate(get_json("uploaded_files.json"))
+
+
+@pytest.mark.asyncio()
+async def test_adelete_file(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.delete(f"{FILES_URL}/file_id", payload=get_json("deleted_file.json"))
+    client = GigaChatAsyncClient(credentials="credentials")
+    response = await client.adelete_file("file_id")
+    assert response == DeletedFile.model_validate(get_json("deleted_file.json"))

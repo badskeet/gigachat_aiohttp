@@ -15,8 +15,11 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urljoin
 
-import httpx
+import aiohttp
+import requests
+from aiohttp import ClientTimeout
 
 from gigachat._types import FileTypes
 from gigachat.api import (
@@ -68,36 +71,48 @@ _logger = logging.getLogger(__name__)
 GIGACHAT_MODEL = "GigaChat"
 
 
+class Session(requests.Session):
+    """Session with base URL support."""
+
+    def __init__(self, base_url: str = None) -> None:
+        """Initialize session."""
+        super().__init__()
+        self.base_url = base_url
+
+    def request(self, method: str, url: str, **kwargs) -> requests.Response:
+        """Send request."""
+        if self.base_url and not url.startswith(("http://", "https://")):
+            url = urljoin(self.base_url, url)
+        return super().request(method, url, **kwargs)
+
+
 def _get_kwargs(settings: Settings) -> Dict[str, Any]:
     """Настройки для подключения к API GIGACHAT"""
     kwargs = {
         "base_url": settings.base_url,
-        "verify": settings.verify_ssl_certs,
-        "timeout": httpx.Timeout(settings.timeout),
     }
+    if settings.timeout:
+        kwargs["timeout"] = ClientTimeout(total=settings.timeout)
     if settings.ssl_context:
-        kwargs["verify"] = settings.ssl_context
+        kwargs["ssl"] = settings.ssl_context
     if settings.ca_bundle_file:
-        kwargs["verify"] = settings.ca_bundle_file
+        kwargs["ssl"] = settings.ca_bundle_file
     if settings.cert_file:
-        kwargs["cert"] = (
-            settings.cert_file,
-            settings.key_file,
-            settings.key_file_password,
-        )
+        kwargs["cert"] = (settings.cert_file, settings.key_file)
+        if settings.key_file_password:
+            kwargs["cert_password"] = settings.key_file_password
     return kwargs
 
 
 def _get_auth_kwargs(settings: Settings) -> Dict[str, Any]:
     """Настройки для подключения к серверу авторизации OAuth 2.0"""
-    kwargs = {
-        "verify": settings.verify_ssl_certs,
-        "timeout": httpx.Timeout(settings.timeout),
-    }
+    kwargs = {}
+    if settings.timeout:
+        kwargs["timeout"] = ClientTimeout(total=settings.timeout)
     if settings.ssl_context:
-        kwargs["verify"] = settings.ssl_context
+        kwargs["ssl"] = settings.ssl_context
     if settings.ca_bundle_file:
-        kwargs["verify"] = settings.ca_bundle_file
+        kwargs["ssl"] = settings.ca_bundle_file
     return kwargs
 
 
@@ -205,15 +220,31 @@ class GigaChatSyncClient(_BaseClient):
         self.assistants = AssistantsSyncClient(self)
         self.threads = ThreadsSyncClient(self)
 
-    @cached_property
-    def _client(self) -> httpx.Client:
-        return httpx.Client(**_get_kwargs(self._settings))
+    @property
+    def _client(self) -> Session:
+        """Get client."""
+        session = Session(base_url=self._settings.base_url)
+        session.verify = self._settings.ssl_context
+        if self._settings.ca_bundle_file:
+            session.verify = self._settings.ca_bundle_file
+        if self._settings.cert_file:
+            session.cert = (self._settings.cert_file, self._settings.key_file)
+            if self._settings.key_file_password:
+                session.cert_password = self._settings.key_file_password
+        return session
 
     @cached_property
-    def _auth_client(self) -> httpx.Client:
-        return httpx.Client(**_get_auth_kwargs(self._settings))
+    def _auth_client(self) -> requests.Session:
+        session = requests.Session()
+        session.timeout = self._settings.timeout
+        if self._settings.ssl_context:
+            session.verify = self._settings.ssl_context
+        if self._settings.ca_bundle_file:
+            session.verify = self._settings.ca_bundle_file
+        return session
 
     def close(self) -> None:
+        """Close client."""
         self._client.close()
         self._auth_client.close()
 
@@ -352,20 +383,20 @@ class GigaChatAsyncClient(_BaseClient):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.a_assistants = AssistantsAsyncClient(self)
-        self.a_threads = ThreadsAsyncClient(self)
+        self.assistants = AssistantsAsyncClient(self)
+        self.threads = ThreadsAsyncClient(self)
 
     @cached_property
-    def _aclient(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(**_get_kwargs(self._settings))
+    def _aclient(self) -> aiohttp.ClientSession:
+        return aiohttp.ClientSession(**_get_kwargs(self._settings))
 
     @cached_property
-    def _auth_aclient(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(**_get_auth_kwargs(self._settings))
+    def _auth_aclient(self) -> aiohttp.ClientSession:
+        return aiohttp.ClientSession(**_get_auth_kwargs(self._settings))
 
     async def aclose(self) -> None:
-        await self._aclient.aclose()
-        await self._auth_aclient.aclose()
+        await self._aclient.close()
+        await self._auth_aclient.close()
 
     async def __aenter__(self) -> "GigaChatAsyncClient":
         return self

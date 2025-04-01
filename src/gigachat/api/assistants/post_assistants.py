@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Optional
 
-import httpx
+import aiohttp
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Function
 from gigachat.models.assistants import CreateAssistant
 
@@ -39,7 +39,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     model: str,
     name: str,
@@ -66,18 +66,18 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     model: str,
     name: str,
-    description: Optional[str] = None,
     instructions: Optional[str] = None,
+    description: Optional[str] = None,
     file_ids: Optional[List[str]] = None,
     functions: Optional[List[Function]] = None,
     metadata: Optional[Dict[str, Any]] = None,
     access_token: Optional[str] = None,
 ) -> CreateAssistant:
-    """Создание ассистента"""
+    """Создает ассистента"""
     kwargs = _get_kwargs(
         model=model,
         name=name,
@@ -88,5 +88,5 @@ async def asyncio(
         metadata=metadata,
         access_token=access_token,
     )
-    response = await client.request(**kwargs)
-    return build_response(response, CreateAssistant)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, CreateAssistant)

@@ -1,6 +1,6 @@
-import httpx
+import aiohttp
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.api import get_models
 from gigachat.context import authorization_cvar, operation_id_cvar, request_id_cvar, service_id_cvar, session_id_cvar
@@ -31,43 +31,43 @@ def test__kwargs_context_vars() -> None:
     operation_id_cvar.reset(token_operation_id_cvar)
 
 
-def test_sync(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json=MODELS)
+def test_sync(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload=MODELS)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = get_models.sync(client)
 
     assert isinstance(response, Models)
 
 
-def test_sync_value_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json={})
+def test_sync_value_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload={})
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ValueError, match="2 validation errors for Models*"):
             get_models.sync(client)
 
 
-def test_sync_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, status_code=401)
+def test_sync_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, status=401)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(AuthenticationError):
             get_models.sync(client)
 
 
-def test_sync_response_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, status_code=400)
+def test_sync_response_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, status=400)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ResponseError):
             get_models.sync(client)
 
 
-def test_sync_headers(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json=MODELS)
+def test_sync_headers(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload=MODELS)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = get_models.sync(
             client,
             access_token="access_token",
@@ -77,10 +77,10 @@ def test_sync_headers(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_asyncio(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MODELS_URL, json=MODELS)
+async def test_asyncio(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(MODELS_URL, payload=MODELS)
 
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = await get_models.asyncio(client)
 
     assert isinstance(response, Models)

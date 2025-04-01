@@ -1,8 +1,9 @@
 import logging
 from http import HTTPStatus
-from typing import Dict, Optional, Type, TypeVar
+from typing import Dict, Optional, Type, TypeVar, Union
 
-import httpx
+import aiohttp
+import requests
 
 from gigachat.context import (
     authorization_cvar,
@@ -68,18 +69,30 @@ def parse_chunk(line: str, model_class: Type[T]) -> Optional[T]:
         return None
 
 
-def build_x_headers(response: httpx.Response) -> Dict[str, Optional[str]]:
+def build_x_headers(response: Union[aiohttp.ClientResponse, requests.Response]) -> Dict[str, Optional[str]]:
     return {
-        "x-request-id": response.headers.get("x-request-id"),
-        "x-session-id": response.headers.get("x-session-id"),
-        "x-client-id": response.headers.get("x-client-id"),
+        key: value
+        for key, value in response.headers.items()
+        if key.lower().startswith("x-")
     }
 
 
-def build_response(response: httpx.Response, model_class: Type[T]) -> T:
+def build_response_sync(response: requests.Response, model_class: Type[T]) -> T:
+    """Build response from requests.Response."""
     if response.status_code == HTTPStatus.OK:
         return model_class(x_headers=build_x_headers(response), **response.json())
-    elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, response.content, response.headers)
-    else:
-        raise ResponseError(response.url, response.status_code, response.content, response.headers)
+    raise Exception(f"Error: {response.status_code}")
+
+
+async def build_response_async(response: aiohttp.ClientResponse, model_class: Type[T]) -> T:
+    """Build response from aiohttp.ClientResponse."""
+    if response.status == HTTPStatus.OK:
+        return model_class(x_headers=build_x_headers(response), **(await response.json()))
+    raise Exception(f"Error: {response.status}")
+
+
+def build_response(response: Union[aiohttp.ClientResponse, requests.Response], model_class: Type[T]) -> T:
+    """Build response from aiohttp.ClientResponse or requests.Response."""
+    if isinstance(response, aiohttp.ClientResponse):
+        raise ValueError("Cannot use aiohttp.ClientResponse in sync context")
+    return build_response_sync(response, model_class)

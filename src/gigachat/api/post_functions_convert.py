@@ -1,8 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models.open_api_functions import OpenApiFunctions
 
 
@@ -16,13 +17,13 @@ def _get_kwargs(
     return {
         "method": "POST",
         "url": "/functions/convert",
-        "content": openapi_function,
+        "text": openapi_function,
         "headers": headers,
     }
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     openapi_function: str,
     access_token: Optional[str] = None,
@@ -34,12 +35,12 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     openapi_function: str,
     access_token: Optional[str] = None,
 ) -> OpenApiFunctions:
     """Конвертация описание функции в формате OpenAPI в gigachat функцию"""
     kwargs = _get_kwargs(openapi_function=openapi_function, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, OpenApiFunctions)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, OpenApiFunctions)

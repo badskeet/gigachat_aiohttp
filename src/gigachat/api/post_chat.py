@@ -1,9 +1,10 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Chat, ChatCompletion
 
 
@@ -18,13 +19,13 @@ def _get_kwargs(
     return {
         "method": "POST",
         "url": "/chat/completions",
-        "content": json.dumps(chat.dict(exclude_none=True, by_alias=True, exclude={"stream"}), ensure_ascii=False),
+        "json": chat.dict(exclude_none=True, by_alias=True, exclude={"stream"}),
         "headers": headers,
     }
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     chat: Chat,
     access_token: Optional[str] = None,
@@ -35,11 +36,11 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     chat: Chat,
     access_token: Optional[str] = None,
 ) -> ChatCompletion:
     kwargs = _get_kwargs(chat=chat, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, ChatCompletion)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, ChatCompletion)

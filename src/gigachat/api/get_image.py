@@ -1,8 +1,9 @@
 import base64
 from http import HTTPStatus
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
 from gigachat.api.utils import build_headers, build_x_headers
 from gigachat.exceptions import AuthenticationError, ResponseError
@@ -23,18 +24,34 @@ def _get_kwargs(
     }
 
 
-def _build_response(response: httpx.Response) -> Image:
+def _build_response_sync(response: requests.Response) -> Image:
     if response.status_code == HTTPStatus.OK:
         x_headers = build_x_headers(response)
-        return Image(x_headers=x_headers, content=base64.b64encode(response.content).decode())
+        content = response.content
+        return Image(x_headers=x_headers, content=base64.b64encode(content).decode())
     elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, response.content, response.headers)
+        content = response.content
+        raise AuthenticationError(str(response.url), response.status_code, content, response.headers)
     else:
-        raise ResponseError(response.url, response.status_code, response.content, response.headers)
+        content = response.content
+        raise ResponseError(str(response.url), response.status_code, content, response.headers)
+
+
+async def _build_response_async(response: aiohttp.ClientResponse) -> Image:
+    if response.status == HTTPStatus.OK:
+        x_headers = build_x_headers(response)
+        content = await response.read()
+        return Image(x_headers=x_headers, content=base64.b64encode(content).decode())
+    elif response.status == HTTPStatus.UNAUTHORIZED:
+        content = await response.read()
+        raise AuthenticationError(str(response.url), response.status, content, response.headers)
+    else:
+        content = await response.read()
+        raise ResponseError(str(response.url), response.status, content, response.headers)
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     file_id: str,
     access_token: Optional[str] = None,
@@ -42,16 +59,16 @@ def sync(
     """Возвращает изображение в base64 кодировке"""
     kwargs = _get_kwargs(access_token=access_token, file_id=file_id)
     response = client.request(**kwargs)
-    return _build_response(response)
+    return _build_response_sync(response)
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     file_id: str,
     access_token: Optional[str] = None,
 ) -> Image:
     """Возвращает изображение в base64 кодировке"""
     kwargs = _get_kwargs(access_token=access_token, file_id=file_id)
-    response = await client.request(**kwargs)
-    return _build_response(response)
+    async with client.request(**kwargs) as response:
+        return await _build_response_async(response)

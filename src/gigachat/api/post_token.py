@@ -1,8 +1,9 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Token
 
 
@@ -22,7 +23,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     user: str,
     password: str,
@@ -33,11 +34,11 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     user: str,
     password: str,
 ) -> Token:
     kwargs = _get_kwargs(user=user, password=password)
-    response = await client.request(**kwargs)
-    return build_response(response, Token)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, Token)

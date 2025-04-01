@@ -1,8 +1,8 @@
 from typing import Any, Dict, Optional
 
-import httpx
+import aiohttp
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models.assistants import AssistantFileDelete
 
 
@@ -26,7 +26,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     assistant_id: str,
     file_id: str,
@@ -38,12 +38,13 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     assistant_id: str,
     file_id: str,
     access_token: Optional[str] = None,
 ) -> AssistantFileDelete:
+    """Удаляет файл ассистента"""
     kwargs = _get_kwargs(assistant_id=assistant_id, file_id=file_id, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, AssistantFileDelete)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, AssistantFileDelete)

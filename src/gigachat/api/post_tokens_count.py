@@ -2,7 +2,7 @@ import json
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers
 from gigachat.exceptions import AuthenticationError, ResponseError
@@ -24,21 +24,24 @@ def _get_kwargs(
         "method": "POST",
         "url": "/tokens/count",
         "headers": headers,
-        "content": json.dumps(json_data, ensure_ascii=False),
+        "json": json_data,
     }
 
 
-def _build_response(response: httpx.Response) -> List[TokensCount]:
-    if response.status_code == HTTPStatus.OK:
-        return [TokensCount(**row) for row in response.json()]
-    elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, response.content, response.headers)
+async def _build_response(response: aiohttp.ClientResponse) -> List[TokensCount]:
+    if response.status == HTTPStatus.OK:
+        json_data = await response.json()
+        return [TokensCount(**row) for row in json_data]
+    elif response.status == HTTPStatus.UNAUTHORIZED:
+        content = await response.read()
+        raise AuthenticationError(str(response.url), response.status, content, response.headers)
     else:
-        raise ResponseError(response.url, response.status_code, response.content, response.headers)
+        content = await response.read()
+        raise ResponseError(str(response.url), response.status, content, response.headers)
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     input_: List[str],
     model: str,
@@ -51,7 +54,7 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     input_: List[str],
     model: str,
@@ -59,5 +62,5 @@ async def asyncio(
 ) -> List[TokensCount]:
     """Возвращает объект с информацией о количестве токенов"""
     kwargs = _get_kwargs(input_=input_, model=model, access_token=access_token)
-    response = await client.request(**kwargs)
-    return _build_response(response)
+    async with client.request(**kwargs) as response:
+        return await _build_response(response)

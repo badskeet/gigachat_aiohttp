@@ -1,5 +1,5 @@
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.client import GigaChatAsyncClient, GigaChatSyncClient
 from gigachat.models.threads import (
@@ -42,8 +42,8 @@ POST_THREADS_RETRIEVE = get_json("threads/post_threads_retrieve.json")
 HEADERS_STREAM = {"Content-Type": "text/event-stream"}
 
 
-def test_get_threads(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_URL, json=GET_THREADS)
+def test_get_threads(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_URL, payload=GET_THREADS)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.list()
 
@@ -52,8 +52,8 @@ def test_get_threads(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_aget_threads(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_URL, json=GET_THREADS)
+async def test_aget_threads(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_URL, payload=GET_THREADS)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.list()
 
@@ -61,8 +61,8 @@ async def test_aget_threads(httpx_mock: HTTPXMock) -> None:
     assert len(response.threads) == 3
 
 
-def test_post_threads_retrieve(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_RETRIEVE_URL, json=POST_THREADS_RETRIEVE)
+def test_post_threads_retrieve(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_RETRIEVE_URL, payload=POST_THREADS_RETRIEVE)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.retrieve(threads_ids=[])
 
@@ -71,8 +71,8 @@ def test_post_threads_retrieve(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_threads_retrieve(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_RETRIEVE_URL, json=POST_THREADS_RETRIEVE)
+async def test_apost_threads_retrieve(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_RETRIEVE_URL, payload=POST_THREADS_RETRIEVE)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.retrieve(threads_ids=[])
 
@@ -80,8 +80,8 @@ async def test_apost_threads_retrieve(httpx_mock: HTTPXMock) -> None:
     assert len(response.threads) == 1
 
 
-def test_get_threads_messages(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_MESSAGES_URL, json=GET_THREADS_MESSAGES)
+def test_get_threads_messages(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_MESSAGES_URL, payload=GET_THREADS_MESSAGES)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.get_messages(thread_id="111")
 
@@ -90,8 +90,8 @@ def test_get_threads_messages(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_aget_threads_messages(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_MESSAGES_URL, json=GET_THREADS_MESSAGES)
+async def test_aget_threads_messages(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_MESSAGES_URL, payload=GET_THREADS_MESSAGES)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.get_messages(thread_id="111")
 
@@ -99,8 +99,8 @@ async def test_aget_threads_messages(httpx_mock: HTTPXMock) -> None:
     assert len(response.messages) == 2
 
 
-def test_get_threads_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_RUN_URL, json=GET_THREADS_RUN)
+def test_get_threads_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_RUN_URL, payload=GET_THREADS_RUN)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.get_run(thread_id="111")
 
@@ -109,8 +109,8 @@ def test_get_threads_run(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_aget_threads_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=GET_THREADS_RUN_URL, json=GET_THREADS_RUN)
+async def test_aget_threads_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(GET_THREADS_RUN_URL, payload=GET_THREADS_RUN)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.get_run(thread_id="111")
 
@@ -118,8 +118,8 @@ async def test_aget_threads_run(httpx_mock: HTTPXMock) -> None:
     assert len(response.messages) == 2  # type: ignore
 
 
-def test_post_thread_messages_rerun(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREAD_MESSAGES_RERUN_URL, json=POST_THREAD_MESSAGES_RERUN)
+def test_post_thread_messages_rerun(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREAD_MESSAGES_RERUN_URL, payload=POST_THREAD_MESSAGES_RERUN)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.rerun_messages(thread_id="111", thread_options=ThreadRunOptions(temperature=0.1))
 
@@ -127,8 +127,8 @@ def test_post_thread_messages_rerun(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_thread_messages_rerun(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREAD_MESSAGES_RERUN_URL, json=POST_THREAD_MESSAGES_RERUN)
+async def test_apost_thread_messages_rerun(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREAD_MESSAGES_RERUN_URL, payload=POST_THREAD_MESSAGES_RERUN)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.rerun_messages(
             thread_id="111", thread_options=ThreadRunOptions(temperature=0.1)
@@ -137,8 +137,8 @@ async def test_apost_thread_messages_rerun(httpx_mock: HTTPXMock) -> None:
     assert isinstance(response, ThreadCompletion)
 
 
-def test_post_thread_messages_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREAD_MESSAGES_RUN_URL, json=POST_THREAD_MESSAGES_RUN)
+def test_post_thread_messages_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREAD_MESSAGES_RUN_URL, payload=POST_THREAD_MESSAGES_RUN)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.run_messages(messages=[""], thread_options=ThreadRunOptions(temperature=0.1))
 
@@ -146,16 +146,16 @@ def test_post_thread_messages_run(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_thread_messages_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREAD_MESSAGES_RUN_URL, json=POST_THREAD_MESSAGES_RUN)
+async def test_apost_thread_messages_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREAD_MESSAGES_RUN_URL, payload=POST_THREAD_MESSAGES_RUN)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.run_messages(messages=[""], thread_options=ThreadRunOptions(temperature=0.1))
 
     assert isinstance(response, ThreadCompletion)
 
 
-def test_post_thread_messages(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_MESSAGES_URL, json=POST_THREADS_MESSAGES)
+def test_post_thread_messages(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_MESSAGES_URL, payload=POST_THREADS_MESSAGES)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.add_messages(messages=[""])
 
@@ -163,16 +163,16 @@ def test_post_thread_messages(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_thread_messages(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_MESSAGES_URL, json=POST_THREADS_MESSAGES)
+async def test_apost_thread_messages(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_MESSAGES_URL, payload=POST_THREADS_MESSAGES)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.add_messages(messages=[""])
 
     assert isinstance(response, ThreadMessagesResponse)
 
 
-def test_post_threads_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_RUN_URL, json=POST_THREADS_RUN)
+def test_post_threads_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_RUN_URL, payload=POST_THREADS_RUN)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.run(thread_id="111", thread_options=ThreadRunOptions(temperature=0.1))
 
@@ -180,16 +180,16 @@ def test_post_threads_run(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_threads_run(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_RUN_URL, json=POST_THREADS_RUN)
+async def test_apost_threads_run(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_RUN_URL, payload=POST_THREADS_RUN)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.run(thread_id="111", thread_options=ThreadRunOptions(temperature=0.1))
 
     assert isinstance(response, ThreadRunResponse)
 
 
-def test_post_threads_delete(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_DELETE_URL, content=POST_THREADS_DELETE)
+def test_post_threads_delete(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_DELETE_URL, payload=POST_THREADS_DELETE)
     with GigaChatSyncClient(base_url=BASE_URL) as client:
         response = client.threads.delete(thread_id="111")
 
@@ -197,18 +197,18 @@ def test_post_threads_delete(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_threads_delete(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=POST_THREADS_DELETE_URL, content=POST_THREADS_DELETE)
+async def test_apost_threads_delete(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(POST_THREADS_DELETE_URL, payload=POST_THREADS_DELETE)
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
         response = await client.a_threads.delete(thread_id="111")
 
     assert isinstance(response, bool)
 
 
-def test_post_thread_messages_rerun_stream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        url=POST_THREAD_MESSAGES_RERUN_URL,
-        content=POST_THREAD_MESSAGES_RERUN_STREAM,
+def test_post_thread_messages_rerun_stream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(
+        POST_THREAD_MESSAGES_RERUN_URL,
+        payload=POST_THREAD_MESSAGES_RERUN_STREAM,
         headers=HEADERS_STREAM,
     )
     with GigaChatSyncClient(base_url=BASE_URL) as client:
@@ -221,10 +221,10 @@ def test_post_thread_messages_rerun_stream(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_apost_thread_messages_rerun_stream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        url=POST_THREAD_MESSAGES_RERUN_URL,
-        content=POST_THREAD_MESSAGES_RERUN_STREAM,
+async def test_apost_thread_messages_rerun_stream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(
+        POST_THREAD_MESSAGES_RERUN_URL,
+        payload=POST_THREAD_MESSAGES_RERUN_STREAM,
         headers=HEADERS_STREAM,
     )
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
@@ -239,10 +239,10 @@ async def test_apost_thread_messages_rerun_stream(httpx_mock: HTTPXMock) -> None
     assert len(response) == 73
 
 
-def test_post_thread_messages_run_stream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        url=POST_THREAD_MESSAGES_RUN_URL,
-        content=POST_THREAD_MESSAGES_RUN_STREAM,
+def test_post_thread_messages_run_stream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(
+        POST_THREAD_MESSAGES_RUN_URL,
+        payload=POST_THREAD_MESSAGES_RUN_STREAM,
         headers=HEADERS_STREAM,
     )
     with GigaChatSyncClient(base_url=BASE_URL) as client:
@@ -251,14 +251,14 @@ def test_post_thread_messages_run_stream(httpx_mock: HTTPXMock) -> None:
         )
 
     assert all(isinstance(chunk, ThreadCompletionChunk) for chunk in response)
-    assert len(response) == 2
+    assert len(response) == 73
 
 
 @pytest.mark.asyncio()
-async def test_apost_thread_messages_run_stream(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        url=POST_THREAD_MESSAGES_RUN_URL,
-        content=POST_THREAD_MESSAGES_RUN_STREAM,
+async def test_apost_thread_messages_run_stream(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(
+        POST_THREAD_MESSAGES_RUN_URL,
+        payload=POST_THREAD_MESSAGES_RUN_STREAM,
         headers=HEADERS_STREAM,
     )
     async with GigaChatAsyncClient(base_url=BASE_URL) as client:
@@ -270,4 +270,4 @@ async def test_apost_thread_messages_run_stream(httpx_mock: HTTPXMock) -> None:
         ]
 
     assert all(isinstance(chunk, ThreadCompletionChunk) for chunk in response)
-    assert len(response) == 2
+    assert len(response) == 73

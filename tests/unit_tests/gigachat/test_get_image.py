@@ -1,5 +1,5 @@
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.client import GigaChatAsyncClient, GigaChatSyncClient
 from gigachat.models import Image
@@ -11,8 +11,8 @@ IMAGE_URL = f"{BASE_URL}/files/img_file/content"
 IMAGE = get_bytes("image.jpg")
 
 
-def test_get_image(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=IMAGE_URL, content=IMAGE)
+def test_get_image(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(IMAGE_URL, payload=IMAGE)
     with GigaChatSyncClient(base_url=BASE_URL, model="model") as client:
         response = client.get_image(file_id="img_file")
 
@@ -20,8 +20,8 @@ def test_get_image(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_aget_image(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=IMAGE_URL, content=IMAGE)
+async def test_aget_image(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.get(IMAGE_URL, payload=IMAGE)
     async with GigaChatAsyncClient(base_url=BASE_URL, model="model") as client:
         response = await client.aget_image(file_id="img_file")
 

@@ -97,12 +97,11 @@ class AssistantsSyncClient:
         )
 
     def delete(self, assistant_id: str) -> AssistantDelete:
-        """Удаляет ассистента"""
+        """Delete assistant."""
         return self.base_client._decorator(
             lambda: post_assistant_delete.sync(
                 self.base_client._client,
                 assistant_id=assistant_id,
-                access_token=self.base_client.token,
             )
         )
 
@@ -191,13 +190,10 @@ class AssistantsAsyncClient:
         return await self.base_client._adecorator(_acall)
 
     async def delete(self, assistant_id: str) -> AssistantDelete:
-        """Удаляет ассистента"""
-
+        """Delete assistant."""
         async def _acall() -> AssistantDelete:
             return await post_assistant_delete.asyncio(
                 self.base_client._aclient,
                 assistant_id=assistant_id,
-                access_token=self.base_client.token,
             )
-
         return await self.base_client._adecorator(_acall)

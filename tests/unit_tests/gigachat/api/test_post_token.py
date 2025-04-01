@@ -1,6 +1,6 @@
-import httpx
+import aiohttp
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.api import post_token
 from gigachat.context import operation_id_cvar, request_id_cvar, service_id_cvar, session_id_cvar
@@ -29,43 +29,43 @@ def test__kwargs_context_vars() -> None:
     operation_id_cvar.reset(token_operation_id_cvar)
 
 
-def test_sync(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=TOKEN)
+def test_sync(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=TOKEN)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = post_token.sync(client, user="user", password="password")
 
     assert isinstance(response, Token)
 
 
-def test_sync_value_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json={})
+def test_sync_value_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload={})
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ValueError, match="2 validation errors for Token*"):
             post_token.sync(client, user="user", password="password")
 
 
-def test_sync_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=401)
+def test_sync_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=401)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(AuthenticationError):
             post_token.sync(client, user="user", password="password")
 
 
-def test_sync_response_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=400)
+def test_sync_response_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=400)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ResponseError):
             post_token.sync(client, user="user", password="password")
 
 
-def test_sync_headers(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=TOKEN)
+def test_sync_headers(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=TOKEN)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = post_token.sync(
             client,
             user="user",
@@ -76,10 +76,10 @@ def test_sync_headers(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_asyncio(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, json=TOKEN)
+async def test_asyncio(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=TOKEN)
 
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = await post_token.asyncio(client, user="user", password="password")
 
     assert isinstance(response, Token)

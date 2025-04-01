@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Any, AsyncIterator, Dict, Iterator, List, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers, build_x_headers, parse_chunk
 from gigachat.exceptions import AuthenticationError, ResponseError
@@ -46,32 +46,32 @@ def _get_kwargs(
     return params
 
 
-def _check_content_type(response: httpx.Response) -> None:
+def _check_content_type(response: aiohttp.ClientResponse) -> None:
     content_type, _, _ = response.headers.get("content-type", "").partition(";")
     if content_type != EVENT_STREAM:
-        raise httpx.TransportError(f"Expected response Content-Type to be '{EVENT_STREAM}', got {content_type!r}")
+        raise aiohttp.ClientError(f"Expected response Content-Type to be '{EVENT_STREAM}', got {content_type!r}")
 
 
-def _check_response(response: httpx.Response) -> None:
-    if response.status_code == HTTPStatus.OK:
+def _check_response(response: aiohttp.ClientResponse) -> None:
+    if response.status == HTTPStatus.OK:
         _check_content_type(response)
-    elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, response.read(), response.headers)
+    elif response.status == HTTPStatus.UNAUTHORIZED:
+        raise AuthenticationError(str(response.url), response.status, response.content.read(), response.headers)
     else:
-        raise ResponseError(response.url, response.status_code, response.read(), response.headers)
+        raise ResponseError(str(response.url), response.status, response.content.read(), response.headers)
 
 
-async def _acheck_response(response: httpx.Response) -> None:
-    if response.status_code == HTTPStatus.OK:
+async def _acheck_response(response: aiohttp.ClientResponse) -> None:
+    if response.status == HTTPStatus.OK:
         _check_content_type(response)
-    elif response.status_code == HTTPStatus.UNAUTHORIZED:
-        raise AuthenticationError(response.url, response.status_code, await response.aread(), response.headers)
+    elif response.status == HTTPStatus.UNAUTHORIZED:
+        raise AuthenticationError(str(response.url), response.status, await response.read(), response.headers)
     else:
-        raise ResponseError(response.url, response.status_code, await response.aread(), response.headers)
+        raise ResponseError(str(response.url), response.status, await response.read(), response.headers)
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     messages: List[Messages],
     thread_id: Optional[str] = None,
@@ -90,17 +90,17 @@ def sync(
         update_interval=update_interval,
         access_token=access_token,
     )
-    with client.stream(**kwargs) as response:
-        _check_response(response)
-        x_headers = build_x_headers(response)
-        for line in response.iter_lines():
-            if chunk := parse_chunk(line, ThreadCompletionChunk):
-                chunk.x_headers = x_headers
-                yield chunk
+    response = client.request(**kwargs)
+    _check_response(response)
+    x_headers = build_x_headers(response)
+    for line in response.content.iter_any():
+        if chunk := parse_chunk(line.decode(), ThreadCompletionChunk):
+            chunk.x_headers = x_headers
+            yield chunk
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     messages: List[Messages],
     thread_id: Optional[str] = None,
@@ -119,10 +119,10 @@ async def asyncio(
         update_interval=update_interval,
         access_token=access_token,
     )
-    async with client.stream(**kwargs) as response:
+    async with client.request(**kwargs) as response:
         await _acheck_response(response)
         x_headers = build_x_headers(response)
-        async for line in response.aiter_lines():
-            if chunk := parse_chunk(line, ThreadCompletionChunk):
+        async for line in response.content.iter_any():
+            if chunk := parse_chunk(line.decode(), ThreadCompletionChunk):
                 chunk.x_headers = x_headers
                 yield chunk

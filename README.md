@@ -55,6 +55,20 @@ with GigaChat(credentials="ваш_ключ_авторизации", verify_ssl_c
     print(response.choices[0].message.content)
 ```
 
+Пример асинхронного использования:
+
+```py
+import asyncio
+from gigachat import GigaChatAsyncClient
+
+async def main():
+    async with GigaChatAsyncClient(credentials="ваш_ключ_авторизации", verify_ssl_certs=False) as giga:
+        response = await giga.chat("Какие факторы влияют на стоимость страховки на дом?")
+        print(response.choices[0].message.content)
+
+asyncio.run(main())
+```
+
 > [!NOTE]
 > Этот и другие примеры работы с библиотекой gigachat — в папке [examples](examples/README.md).
 

@@ -1,9 +1,10 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Embeddings
 
 
@@ -19,13 +20,13 @@ def _get_kwargs(
     return {
         "method": "POST",
         "url": "/embeddings",
-        "content": json.dumps({"input": input_, "model": model}, ensure_ascii=False),
+        "json": {"input": input_, "model": model},
         "headers": headers,
     }
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     input_: List[str],
     model: str,
@@ -37,12 +38,12 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     input_: List[str],
     model: str,
     access_token: Optional[str] = None,
 ) -> Embeddings:
     kwargs = _get_kwargs(input_=input_, model=model, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, Embeddings)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, Embeddings)

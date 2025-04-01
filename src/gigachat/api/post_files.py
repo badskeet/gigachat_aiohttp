@@ -1,9 +1,10 @@
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
 from gigachat._types import FileTypes
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import UploadedFile
 
 
@@ -18,14 +19,14 @@ def _get_kwargs(
     return {
         "method": "POST",
         "url": "/files",
-        "files": {"file": file},
         "data": {"purpose": purpose},
+        "files": {"file": file},
         "headers": headers,
     }
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     file: FileTypes,
     purpose: Literal["general", "assistant"] = "general",
@@ -37,12 +38,12 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     file: FileTypes,
     purpose: Literal["general", "assistant"] = "general",
     access_token: Optional[str] = None,
 ) -> UploadedFile:
     kwargs = _get_kwargs(file=file, purpose=purpose, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, UploadedFile)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, UploadedFile)

@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers, build_response
 from gigachat.models.threads import ThreadRunOptions, ThreadRunResponse
@@ -26,7 +26,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     thread_id: str,
     thread_options: Optional[ThreadRunOptions] = None,
@@ -39,7 +39,7 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     thread_id: str,
     thread_options: Optional[ThreadRunOptions] = None,
@@ -47,5 +47,5 @@ async def asyncio(
 ) -> ThreadRunResponse:
     """Получить результат run треда"""
     kwargs = _get_kwargs(thread_id=thread_id, thread_options=thread_options, access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, ThreadRunResponse)
+    async with client.request(**kwargs) as response:
+        return await build_response(response, ThreadRunResponse)

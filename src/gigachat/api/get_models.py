@@ -1,8 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-import httpx
+import aiohttp
+import requests
 
-from gigachat.api.utils import build_headers, build_response
+from gigachat.api.utils import build_headers, build_response, build_response_async
 from gigachat.models import Models
 
 
@@ -20,7 +21,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: Union[aiohttp.ClientSession, requests.Session],
     *,
     access_token: Optional[str] = None,
 ) -> Models:
@@ -31,11 +32,11 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     access_token: Optional[str] = None,
 ) -> Models:
     """Возвращает массив объектов с данными доступных моделей"""
     kwargs = _get_kwargs(access_token=access_token)
-    response = await client.request(**kwargs)
-    return build_response(response, Models)
+    async with client.request(**kwargs) as response:
+        return await build_response_async(response, Models)

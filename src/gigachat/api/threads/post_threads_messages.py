@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-import httpx
+import aiohttp
 
 from gigachat.api.utils import build_headers, build_response
 from gigachat.models import Messages
@@ -33,7 +33,7 @@ def _get_kwargs(
 
 
 def sync(
-    client: httpx.Client,
+    client: aiohttp.ClientSession,
     *,
     messages: List[Messages],
     model: Optional[str] = None,
@@ -54,7 +54,7 @@ def sync(
 
 
 async def asyncio(
-    client: httpx.AsyncClient,
+    client: aiohttp.ClientSession,
     *,
     messages: List[Messages],
     model: Optional[str] = None,
@@ -70,5 +70,5 @@ async def asyncio(
         assistant_id=assistant_id,
         access_token=access_token,
     )
-    response = await client.request(**kwargs)
-    return build_response(response, ThreadMessagesResponse)
+    async with client.request(**kwargs) as response:
+        return await build_response(response, ThreadMessagesResponse)

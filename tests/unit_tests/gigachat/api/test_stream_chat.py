@@ -1,8 +1,8 @@
 import logging
 
-import httpx
+import aiohttp
 import pytest
-from pytest_httpx import HTTPXMock
+from pytest_aiohttp import AiohttpClientMock
 
 from gigachat.api import stream_chat
 from gigachat.context import authorization_cvar, operation_id_cvar, request_id_cvar, service_id_cvar, session_id_cvar
@@ -37,10 +37,10 @@ def test__kwargs_context_vars() -> None:
     operation_id_cvar.reset(token_operation_id_cvar)
 
 
-def test_sync(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
+def test_sync(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = list(stream_chat.sync(client, chat=CHAT))
 
     assert len(response) == 3
@@ -48,46 +48,46 @@ def test_sync(httpx_mock: HTTPXMock) -> None:
     assert response[2].choices[0].finish_reason == "stop"
 
 
-def test_sync_content_type_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, content=CHAT_COMPLETION_STREAM)
+def test_sync_content_type_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION_STREAM)
 
-    with httpx.Client(base_url=BASE_URL) as client:
-        with pytest.raises(httpx.TransportError):
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
+        with pytest.raises(aiohttp.ClientError):
             list(stream_chat.sync(client, chat=CHAT))
 
 
-def test_sync_value_error(caplog: pytest.LogCaptureFixture, httpx_mock: HTTPXMock) -> None:
+def test_sync_value_error(caplog: pytest.LogCaptureFixture, aiohttp_mock: AiohttpClientMock) -> None:
     caplog.set_level(logging.WARNING)
 
-    httpx_mock.add_response(url=MOCK_URL, content=b'data: {"error": 500}', headers=HEADERS_STREAM)
+    aiohttp_mock.post(MOCK_URL, payload=b'data: {"error": 500}', headers=HEADERS_STREAM)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ValueError, match="4 validation errors for ChatCompletionChunk*"):
             list(stream_chat.sync(client, chat=CHAT))
 
     assert '"error": 500' in caplog.text
 
 
-def test_sync_authentication_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=401)
+def test_sync_authentication_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=401)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(AuthenticationError):
             list(stream_chat.sync(client, chat=CHAT))
 
 
-def test_sync_response_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, status_code=400)
+def test_sync_response_error(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, status=400)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         with pytest.raises(ResponseError):
             list(stream_chat.sync(client, chat=CHAT))
 
 
-def test_sync_headers(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
+def test_sync_headers(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
 
-    with httpx.Client(base_url=BASE_URL) as client:
+    with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = list(
             stream_chat.sync(
                 client,
@@ -102,10 +102,10 @@ def test_sync_headers(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_asyncio(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=MOCK_URL, content=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
+async def test_asyncio(aiohttp_mock: AiohttpClientMock) -> None:
+    aiohttp_mock.post(MOCK_URL, payload=CHAT_COMPLETION_STREAM, headers=HEADERS_STREAM)
 
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+    async with aiohttp.ClientSession(base_url=BASE_URL) as client:
         response = [chunk async for chunk in stream_chat.asyncio(client, chat=CHAT)]
 
     assert len(response) == 3
